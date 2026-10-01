@@ -30,22 +30,54 @@ def clean_and_format_content(content_div):
     ):
         tag.decompose()
 
-    # 2. Hapus atribut style bawaan (seperti font-family/color aneh dari Blogspot)
+    # 2. Hapus widget/div navigasi bawaan web berdasarkan class atau ID
+    for tag in content_div.find_all(
+        class_=re.compile(r"blog-pager|post-footer|share|nav|pager", re.I)
+    ):
+        tag.decompose()
+
+    for tag in content_div.find_all(
+        id=re.compile(r"blog-pager|post-footer|nav|pager", re.I)
+    ):
+        tag.decompose()
+
+    # 3. Hapus tag <a> yang mengandung kata kunci tombol navigasi (Next/Prev)
+    nav_keywords = [
+        "next post",
+        "prev post",
+        "previous post",
+        "« prev",
+        "next »",
+        "next",
+        "prev",
+        "sebelumnya",
+        "selanjutnya",
+    ]
+
+    for a in content_div.find_all("a"):
+        text = " ".join(a.get_text().split()).strip().lower()
+        if any(kw in text for kw in nav_keywords):
+            a.decompose()
+
+    # 4. Hapus atribut style & class bawaan dari sisa tag
     for tag in content_div.find_all(True):
         if "style" in tag.attrs:
             del tag.attrs["style"]
         if "class" in tag.attrs:
             del tag.attrs["class"]
 
-    # 3. Ganti tag <br> berurutan menjadi paragraf baru agar spasi antar paragraf konsisten
+    # 5. Ganti tag <br> berurutan menjadi paragraf baru agar spasi antar paragraf konsisten
     raw_html = str(content_div)
     raw_html = re.sub(r"(<br\s*/?>\s*){2,}", "</p><p>", raw_html)
 
     soup = BeautifulSoup(raw_html, "html.parser")
 
-    # 4. Hapus paragraf/tag kosong
+    # 6. Hapus paragraf/div/span kosong atau yang hanya berisi teks navigasi pendek
     for p in soup.find_all(["p", "div", "span"]):
-        if not p.get_text(strip=True) and not p.find_all("img"):
+        text = " ".join(p.get_text().split()).strip().lower()
+        if not text and not p.find_all("img"):
+            p.decompose()
+        elif any(kw in text for kw in nav_keywords) and len(text) < 30:
             p.decompose()
 
     return str(soup)
@@ -107,10 +139,26 @@ def download_blogspot_batch(
             print("[-] Konten artikel tidak ditemukan pada halaman ini.")
             break
 
-        # Bersihkan dan rapikan HTML konten
+        # 3. Cari URL Berikutnya TERLEBIH DAHULU sebelum div konten dibersihkan/di-decompose
+        next_tag = soup.find("a", id="Blog1_blog-pager-newer-link") or soup.find(
+            "a", class_="blog-pager-newer-link"
+        )
+
+        if not next_tag:
+            for a in soup.find_all("a", href=True):
+                text = " ".join(a.get_text().split()).strip().lower()
+                if "prev post" in text or "« prev" in text:
+                    next_tag = a
+                    break
+
+        next_url = None
+        if next_tag and next_tag.get("href"):
+            next_url = urljoin(current_url, next_tag["href"])
+
+        # 4. Bersihkan HTML konten dari tombol navigasi & style bawaan
         cleaned_body_html = clean_and_format_content(content_div)
 
-        # 3. Format CSS Template Khusus Layak Baca / PDF Book Styling
+        # 5. Format CSS Template Khusus Layak Baca / PDF Book Styling
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -157,7 +205,6 @@ def download_blogspot_batch(
                     line-height: 1.6;
                 }}
 
-                /* Paragraf pertama setelah judul/pemisah tidak perlu indent */
                 h1 + p, div > p:first-child {{
                     text-indent: 0;
                 }}
@@ -183,7 +230,7 @@ def download_blogspot_batch(
         </html>
         """
 
-        # Simpan PDF: export/<base_filename>_<nomor>.pdf
+        # Simpan PDF
         file_name = f"{base_filename}_{page_count}.pdf"
         pdf_path = os.path.join(export_folder, file_name)
 
@@ -192,25 +239,9 @@ def download_blogspot_batch(
         else:
             print(f"[-] Gagal mengonversi ke PDF: {file_name}")
 
-        # 4. MENCARI TOMBOL NEXT (`blog-pager-newer-link` / `« Prev Post`)
-        next_tag = soup.find("a", id="Blog1_blog-pager-newer-link") or soup.find(
-            "a", class_="blog-pager-newer-link"
-        )
-
-        if not next_tag:
-            for a in soup.find_all("a", href=True):
-                text = " ".join(a.get_text().split()).strip().lower()
-                if "prev post" in text or "« prev" in text:
-                    next_tag = a
-                    break
-
-        # 5. Tentukan URL Berikutnya
-        next_url = None
-        if next_tag and next_tag.get("href"):
-            next_url = urljoin(current_url, next_tag["href"])
-            print(f"[->] Pindah ke bab berikutnya via: {next_url}")
-
+        # 6. Pindah ke URL Berikutnya
         if next_url and next_url not in visited_urls:
+            print(f"[->] Pindah ke bab berikutnya via: {next_url}")
             current_url = next_url
             page_count += 1
         else:
@@ -226,5 +257,7 @@ if __name__ == "__main__":
     start_url = "https://target.blogspot.com/2026/10/url-post.html"
 
     download_blogspot_batch(
-        start_url=start_url, base_filename="Content", export_folder="export"
+        start_url=start_url,
+        base_filename="file_name",
+        export_folder="export",
     )
