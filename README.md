@@ -7,7 +7,8 @@ A Python-based utility tool to scrape Blogspot content posts and convert them in
 ## 🌟 Features
 
 - **Single Post Downloader**: Converts a specific Blogspot page into a PDF.
-- **Batch Chapter Downloader**: Automatically iterates through chapter navigation links (`« Prev Post`, `Next Post`, etc.) to download entire content series in sequential order.
+- **Batch All Post Downloader**: Automatically all post by RSS API and naming file by Post Title.
+- **Batch Prev Next Post Downloader**: Automatically iterates through chapter navigation links (`« Prev Post`, `Next Post`, etc.) to download entire content series in sequential order.
 - **Text-Optimized Layout**: Formats typography using Georgia serif fonts, clean paragraph indentations, justified alignment, headers, and automatic page numbers.
 - **Content Sanitization**: Automatically removes unwanted web elements like navigation buttons, headers, footers, embedded ads, and inline styles.
 
@@ -85,7 +86,8 @@ Use `single_post.py` (or your single-script file) to quickly download and conver
 ## 📁 Output Directory Structure
 
 ```text
-├── batch_by_page.py       # Batch crawler script
+├── batch_all_post.py      # Batch All Post script
+├── batch_by_page.py       # Batch Prev Next Post script
 ├── single_post.py         # Single post downloader script
 ├── requirements.txt       # Dependencies list
 ├── .gitignore             # Keeps venv and generated files out of Git
