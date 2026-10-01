@@ -1,0 +1,10 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Python Cache & PDF Output
+__pycache__/
+*.pyc
+export/
+*.pdf
